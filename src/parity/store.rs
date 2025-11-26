@@ -1,5 +1,8 @@
+use blockchain_benches::store_interface::{ProgressTracker, StoreRead, StoreWrite};
 use parity_db::{ColId, CompressionType, Db, Error, Options, Result};
 use std::{marker::PhantomData, path::Path};
+
+pub use blockchain_benches::store_interface::StoreCodec;
 
 pub type StoreResult<T> = Result<T>;
 
@@ -32,38 +35,37 @@ impl Layout {
 	}
 }
 
-/// Codec trait with borrow-friendly encoding.
-pub trait StoreCodec<T> {
-	type Enc<'a>: AsRef<[u8]> where T: 'a, Self: 'a;
-	fn encode<'a>(value: &'a T) -> Self::Enc<'a>;
-	fn decode(bytes: &[u8]) -> Result<T>;
-}
-
 /// Generic store operating on a chosen layout and codecs.
 pub struct Store<K, V, KC, VC>
 where
-	KC: StoreCodec<K>,
-	VC: StoreCodec<V>,
+	KC: StoreCodec<K, Error = Error>,
+	VC: StoreCodec<V, Error = Error>,
 {
 	db: Db,
 	layout: Layout,
+    progress: Option<ProgressTracker>,
 	_ph: PhantomData<(K, V, KC, VC)>,
 }
 
 impl<K, V, KC, VC> Store<K, V, KC, VC>
 where
-	KC: StoreCodec<K>,
-	VC: StoreCodec<V>,
+	KC: StoreCodec<K, Error = Error>,
+	VC: StoreCodec<V, Error = Error>,
 {
 	pub fn open(path: &Path, layout: Layout) -> Result<Self> {
-		let options = build_options(path, &layout);
-		let db = Db::open_or_create(&options)?;
-		Ok(Self { db, layout, _ph: PhantomData })
+		Self::open_with_options(path, layout, ())
 	}
 
-	pub fn commit<'a, I>(&self, items: I) -> Result<()>
+	pub fn open_with_options(path: &Path, layout: Layout, _options: ()) -> Result<Self> {
+		let options = build_options(path, &layout);
+		let db = Db::open_or_create(&options)?;
+		Ok(Self { db, progress: None, layout, _ph: PhantomData })
+	}
+
+	pub fn commit<'a, I>(&mut self, items: I) -> Result<()>
 	where I: IntoIterator<Item = (&'a K, &'a V)>, K: 'a, V: 'a,
 	{
+        let mut processed = 0u64;
 		match self.layout {
 			Layout::Plain { key_to_value } => {
 				let changes = items
@@ -74,7 +76,8 @@ where
 						(key_to_value, kbytes.as_ref().to_vec(), Some(vbytes.as_ref().to_vec()))
 					})
 					.collect::<Vec<_>>();
-				self.db.commit(changes)
+                processed += changes.len() as u64;
+				self.db.commit(changes)?
 			},
 			Layout::UniqueIndex { key_to_value, value_to_key } => {
 				let mut changes = Vec::new();
@@ -84,7 +87,8 @@ where
 					changes.push((key_to_value, kbytes.as_ref().to_vec(), Some(vbytes.as_ref().to_vec())));
 					changes.push((value_to_key, vbytes.as_ref().to_vec(), Some(kbytes.as_ref().to_vec())));
 				}
-				self.db.commit(changes)
+                processed += changes.len() as u64;
+				self.db.commit(changes)?
 			},
 			Layout::Range { key_to_value, value_key_btree } => {
 				let mut changes = Vec::new();
@@ -96,7 +100,8 @@ where
 					let vk = concat(vbytes.as_ref(), kslice);
 					changes.push((value_key_btree, vk, Some(Vec::new())));
 				}
-				self.db.commit(changes)
+                processed += changes.len() as u64;
+				self.db.commit(changes)?
 			},
 			Layout::Dictionary { key_to_birth_key, birth_key_to_value, value_to_birth_key, birth_key_key_btree } => {
 				use std::collections::HashMap;
@@ -127,11 +132,15 @@ where
 					changes.push((birth_key_key_btree, pk_key, Some(Vec::new())));
 				}
 				if !changes.is_empty() {
+                    processed += changes.len() as u64;
 					self.db.commit(changes)?;
 				}
-				Ok(())
 			},
 		}
+        if let Some(p) = self.progress.as_mut() {
+            p.record(processed);
+        }
+        Ok(())
 	}
 
 	pub fn get_value(&self, key: &K) -> Result<Option<V>> {
@@ -199,6 +208,10 @@ where
 			_ => Err(Error::InvalidInput("get_keys_for_value not supported for this layout".into())),
 		}
 	}
+
+	pub fn flush(&mut self) -> Result<()> {
+		Ok(())
+	}
 }
 
 fn build_options(path: &Path, layout: &Layout) -> Options {
@@ -228,4 +241,104 @@ fn concat(a: &[u8], b: &[u8]) -> Vec<u8> {
 	out.extend_from_slice(a);
 	out.extend_from_slice(b);
 	out
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+	use blockchain_benches::store_tests::{basic_value_roundtrip, multiple_keys_for_value, reverse_lookup_unique};
+	use tempfile::tempdir;
+
+	struct BytesCodec;
+
+	impl StoreCodec<Vec<u8>> for BytesCodec {
+		type Error = Error;
+		type Enc<'a> = &'a [u8];
+		fn encode<'a>(value: &'a Vec<u8>) -> Self::Enc<'a> {
+			value.as_slice()
+		}
+		fn decode(bytes: &[u8]) -> Result<Vec<u8>> {
+			Ok(bytes.to_vec())
+		}
+	}
+
+	#[test]
+	fn shared_basic_suite() {
+		basic_value_roundtrip(|| {
+			let dir = tempdir().unwrap();
+			let path = dir.path().to_path_buf();
+			std::mem::forget(dir);
+			Store::<Vec<u8>, Vec<u8>, BytesCodec, BytesCodec>::open_with_options(&path, Layout::plain(0), ()).unwrap()
+		});
+	}
+
+	#[test]
+	fn shared_reverse_suite() {
+		reverse_lookup_unique(|| {
+			let dir = tempdir().unwrap();
+			let path = dir.path().to_path_buf();
+			std::mem::forget(dir);
+			Store::<Vec<u8>, Vec<u8>, BytesCodec, BytesCodec>::open_with_options(&path, Layout::unique_index(0), ()).unwrap()
+		});
+	}
+
+	#[test]
+	fn shared_multiple_keys_suite() {
+		multiple_keys_for_value(|| {
+			let dir = tempdir().unwrap();
+			let path = dir.path().to_path_buf();
+			std::mem::forget(dir);
+			Store::<Vec<u8>, Vec<u8>, BytesCodec, BytesCodec>::open_with_options(&path, Layout::range(0), ()).unwrap()
+		});
+	}
+}
+
+impl<K, V, KC, VC> StoreRead<K, V> for Store<K, V, KC, VC>
+where
+	KC: StoreCodec<K, Error = Error>,
+	VC: StoreCodec<V, Error = Error>,
+{
+	type Error = Error;
+
+	fn get_value(&self, key: &K) -> Result<Option<V>> {
+		Store::get_value(self, key)
+	}
+
+	fn get_key_for_value(&self, value: &V) -> Result<Option<K>> {
+		Store::get_key_for_value(self, value)
+	}
+
+	fn get_keys_for_value(&self, value: &V) -> Result<Vec<K>> {
+		Store::get_keys_for_value(self, value)
+	}
+}
+
+impl<K, V, KC, VC> StoreWrite<K, V> for Store<K, V, KC, VC>
+where
+	KC: StoreCodec<K, Error = Error>,
+	VC: StoreCodec<V, Error = Error>,
+{
+	type Options = ();
+	type Layout = Layout;
+
+	fn open_with_options(path: &Path, layout: Self::Layout, options: Self::Options) -> Result<Self> {
+		Store::open_with_options(path, layout, options)
+	}
+
+	fn commit<'a, I>(&mut self, items: I) -> Result<()>
+	where
+		I: IntoIterator<Item = (&'a K, &'a V)>,
+		K: 'a,
+		V: 'a,
+	{
+		Store::commit(self, items)
+	}
+
+	fn flush(&mut self) -> Result<()> {
+		Store::flush(self)
+	}
+
+    fn set_progress(&mut self, label: &str, total: u64) {
+        self.progress = Some(ProgressTracker::new(label.to_string(), total));
+    }
 }
