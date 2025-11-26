@@ -12,7 +12,8 @@ We suffer from **Dual Ordering Problem** :
 I already know that for blockchain data persistence, [parity-db](https://github.com/paritytech/parity-db/) with its mmapped dynamically sized probing hash tables can beat well known storages :
  - copy-on-write (COW) B+Tree family  (redb, sled, libmdbx)
  - LSM Tree with WAL family (leveldb, rocksdb)
-so I compare these storages with basic abstraction like index, range or dictionary :
+
+so I compare these storages with basic abstraction like index, range and dictionary :
 - [parity](https://github.com/paritytech/parity-db/) store 
   - mmapped dynamically sized probing hash tables with only 2 BTrees 
 - [fst-lsm](https://github.com/BurntSushi/fst) store
@@ -26,4 +27,4 @@ Defaults: 10_000_000 rows, temp dir; fst uses a 2 GB memtable
 
 ### Results
 
-The bench shows that `fst-lsm` beats parity-db which is already blazing fast 
+The bench shows that just a prototype of `fst-lsm` levels up with parity-db which is already blazing fast 
