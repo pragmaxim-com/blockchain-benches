@@ -32,3 +32,6 @@ Defaults: 10_000_000 rows, temp dir; fst uses a 2 GB memtable
 The goal is to make a hybrid storage engine that combines fjall-rs with fst-lsm such that :
  - fjall is used for key-value pairs
  - fst-lsm is used for value-key pairs (index) 
+
+The reason is that LSM Tree performance degrades for hashes as keys basically linearly and we will try to prove
+that fst-lsm performance degrades sub-linearly. 

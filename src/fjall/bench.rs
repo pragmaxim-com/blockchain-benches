@@ -50,7 +50,7 @@ fn main() -> StoreResult<()> {
 			let base = base.clone();
 			Box::new(move || run_plain(&base, total, fjall_plain_factory))
 		},
-/*		{
+		{
 			let base = base.clone();
 			Box::new(move || run_index(&base, total, fjall_index_factory))
 		},
@@ -62,7 +62,7 @@ fn main() -> StoreResult<()> {
 			let base = base.clone();
 			Box::new(move || run_dictionary(&base, total, fjall_dictionary_factory))
 		},
-*/	];
+	];
 
 	run_all_parallel(jobs)?;
 

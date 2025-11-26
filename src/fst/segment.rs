@@ -1,8 +1,7 @@
-use fst::{IntoStreamer, Map, MapBuilder, Streamer};
+use fst::{map::OpBuilder, IntoStreamer, Map, MapBuilder, Streamer};
 use memmap2::Mmap;
 use std::{
-	cmp::Reverse,
-	collections::{BinaryHeap, BTreeMap, HashSet},
+	collections::{BTreeMap, HashSet},
 	fs::{self, File},
 	io::{BufReader, BufWriter, Read, Seek, SeekFrom, Write},
 	path::{Path, PathBuf},
@@ -212,45 +211,32 @@ pub(crate) fn merge_segments(dir: &Path, col_id: u8, new_id: u64, metas: Vec<Seg
 		holders.push((map, m.values_path.clone(), m.id));
 	}
 
-	let mut streams: Vec<_> = holders.iter().map(|(map, _, _)| map.stream()).collect();
+	// Build union stream; maps are sorted by segment id so later segments override earlier ones.
+	holders.sort_by_key(|(_, _, id)| *id);
+	let maps: Vec<_> = holders.iter().map(|(m, _, _)| m).collect();
+	let mut union = maps.into_iter().collect::<OpBuilder>().union();
 	let mut value_readers: Vec<_> = holders
 		.iter()
 		.map(|(_, val_path, _)| ValueReader::new(File::open(val_path).unwrap()))
 		.collect();
-	let mut heap: BinaryHeap<Reverse<(Vec<u8>, Reverse<u64>, usize, u64)>> = BinaryHeap::new();
-	for (idx, stream) in streams.iter_mut().enumerate() {
-		if let Some((k, off)) = stream.next() {
-			let seg_id = holders[idx].2;
-			heap.push(Reverse((k.to_vec(), Reverse(seg_id), idx, off)));
-		}
-	}
 
 	let (fst_path, values_path) = segment_paths(dir, col_id, new_id);
 	let mut map_builder = MapBuilder::new(BufWriter::new(File::create(&fst_path)?))?;
 	let mut val_writer = BufWriter::new(File::create(&values_path)?);
 	let mut write_offset: u64 = 0;
-	let mut last_emitted: Option<Vec<u8>> = None;
 
-	while let Some(Reverse((key, _sid, seg_idx, val_offset))) = heap.pop() {
-		if last_emitted.as_ref().map_or(false, |prev| *prev == key) {
-			if let Some((k, off)) = streams[seg_idx].next() {
-				let seg_id = holders[seg_idx].2;
-				heap.push(Reverse((k.to_vec(), Reverse(seg_id), seg_idx, off)));
-			}
-			continue;
-		}
-		let val = value_readers[seg_idx].read_at(val_offset)?;
-		map_builder.insert(&key, write_offset)?;
-		write_value(&mut val_writer, &val)?;
-		let next_offset = write_offset.checked_add(4 + val.len() as u64).ok_or_else(|| {
-			StoreError::InvalidInput("value offsets exceeded u64".into())
-		})?;
-		write_offset = next_offset;
-		last_emitted = Some(key.clone());
-
-		if let Some((k, off)) = streams[seg_idx].next() {
-			let seg_id = holders[seg_idx].2;
-			heap.push(Reverse((k.to_vec(), Reverse(seg_id), seg_idx, off)));
+	while let Some((key, outs)) = union.next() {
+		// outs are ordered by the map input index; take the last to prefer newest segment.
+		if let Some(last) = outs.last() {
+			let reader_idx = last.index;
+			let val_offset = last.value;
+			let val = value_readers[reader_idx].read_at(val_offset)?;
+			map_builder.insert(key, write_offset)?;
+			write_value(&mut val_writer, &val)?;
+			let next_offset = write_offset.checked_add(4 + val.len() as u64).ok_or_else(|| {
+				StoreError::InvalidInput("value offsets exceeded u64".into())
+			})?;
+			write_offset = next_offset;
 		}
 	}
 
