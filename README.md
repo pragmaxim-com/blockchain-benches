@@ -9,11 +9,13 @@ In the context of persisting :
 We suffer from **Dual Ordering Problem** : 
  - supporting queries efficiently on both Key and Value requires two different index orders, and maintaining them consistently creates problems of duplication.
 
-I already know that for blockchain data persistence, [parity-db](https://github.com/paritytech/parity-db/) with its mmapped dynamically sized probing hash tables can beat well known storages :
+I already know that parity-db or fjall-rs can beat well known storages for blockchain data persistence :
  - copy-on-write (COW) B+Tree family  (redb, sled, libmdbx)
  - LSM Tree with WAL family (leveldb, rocksdb)
 
-so I compare these storages with basic abstraction like index, range and dictionary :
+so I compare these storages with basic abstraction like index, range and dictionary of many columns because that reveals real write amplification :
+- [fjall](https://github.com/paritytech/parity-db/) store
+  - LSM-tree-based storage similar to RocksDB
 - [parity](https://github.com/paritytech/parity-db/) store 
   - mmapped dynamically sized probing hash tables with only 2 BTrees 
 - [fst-lsm](https://github.com/BurntSushi/fst) store
@@ -25,6 +27,8 @@ Bench CLI helpers:
 
 Defaults: 10_000_000 rows, temp dir; fst uses a 2 GB memtable
 
-### Results
+### Goal
 
-The bench shows that just a prototype of `fst-lsm` levels up with parity-db which is already blazing fast 
+The goal is to make a hybrid storage engine that combines fjall-rs with fst-lsm such that :
+ - fjall is used for key-value pairs
+ - fst-lsm is used for value-key pairs (index) 

@@ -11,6 +11,10 @@ path = "src/parity/bench.rs"
 name = "fst-bench"
 path = "src/fst/bench.rs"
 
+[[bin]]
+name = "fjall-bench"
+path = "src/fjall/bench.rs"
+
 
 [dependencies]
 bs58 = "0.5"
@@ -20,6 +24,7 @@ parity-db = "0.5.4"
 rand = "0.9.2"
 fst = "0.4.7"
 memmap2 = "0.9"
+fjall = "2.11.2"
 
 [dev-dependencies]
 tempfile = "3"
