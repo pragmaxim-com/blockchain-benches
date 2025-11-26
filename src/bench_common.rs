@@ -13,24 +13,14 @@ use std::{
 	thread,
 };
 
-pub const KEY_LEN: usize = 16; // u64 + u32 + u32
 pub const BATCH: usize = 20_000;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
-pub struct Key16(pub [u8; KEY_LEN]);
+pub struct Key(pub u64);
 
-impl Key16 {
-	pub fn from_fields(a: u64, b: u32, c: u32) -> Self {
-		let mut out = [0u8; KEY_LEN];
-		out[0..8].copy_from_slice(&a.to_le_bytes());
-		out[8..12].copy_from_slice(&b.to_le_bytes());
-		out[12..16].copy_from_slice(&c.to_le_bytes());
-		Self(out)
-	}
-}
-impl AsRef<[u8]> for Key16 {
-	fn as_ref(&self) -> &[u8] {
-		&self.0
+impl Key {
+	pub fn to_be_bytes(self) -> [u8; 8] {
+		self.0.to_be_bytes()
 	}
 }
 
@@ -58,14 +48,14 @@ impl AsRef<[u8]> for Address {
 
 pub fn run_plain<S, F>(base: &Path, total: u64, factory: F) -> Result<(), S::Error>
 where
-	S: StoreWrite<Key16, Amount>,
+	S: StoreWrite<Key, Amount>,
 	F: Fn(&Path) -> Result<S, S::Error>,
 {
 	let path = base.join("plain");
 	let mut store = factory(&path)?;
 	store.set_progress("plain", total);
 	let mut _inserted: u64 = 0;
-	let mut batch: Vec<(Key16, Amount)> = Vec::with_capacity(BATCH);
+	let mut batch: Vec<(Key, Amount)> = Vec::with_capacity(BATCH);
 	for i in 0..total {
 		batch.push((make_key(i), Amount(i)));
 		if batch.len() >= BATCH {
@@ -84,7 +74,7 @@ where
 
 pub fn run_index<S, F>(base: &Path, total: u64, factory: F) -> Result<(), S::Error>
 where
-	S: StoreWrite<Key16, TxHash>,
+	S: StoreWrite<Key, TxHash>,
 	F: Fn(&Path) -> Result<S, S::Error>,
 {
 	let path = base.join("index");
@@ -92,7 +82,7 @@ where
 	store.set_progress("index", total);
 	let mut rng = StdRng::seed_from_u64(1);
 	let mut _inserted: u64 = 0;
-	let mut batch: Vec<(Key16, TxHash)> = Vec::with_capacity(BATCH);
+	let mut batch: Vec<(Key, TxHash)> = Vec::with_capacity(BATCH);
 	for i in 0..total {
 		let k = make_key(i);
 		let mut h = [0u8; 32];
@@ -114,14 +104,14 @@ where
 
 pub fn run_range<S, F>(base: &Path, total: u64, factory: F) -> Result<(), S::Error>
 where
-	S: StoreWrite<Key16, Timestamp>,
+	S: StoreWrite<Key, Timestamp>,
 	F: Fn(&Path) -> Result<S, S::Error>,
 {
 	let path = base.join("range");
 	let mut store = factory(&path)?;
 	store.set_progress("range", total);
 	let mut _inserted: u64 = 0;
-	let mut batch: Vec<(Key16, Timestamp)> = Vec::with_capacity(BATCH);
+	let mut batch: Vec<(Key, Timestamp)> = Vec::with_capacity(BATCH);
 	for i in 0..total {
 		batch.push((make_key(i), Timestamp(i)));
 		if batch.len() >= BATCH {
@@ -140,7 +130,7 @@ where
 
 pub fn run_dictionary<S, F>(base: &Path, total: u64, factory: F) -> Result<(), S::Error>
 where
-	S: StoreWrite<Key16, Address>,
+	S: StoreWrite<Key, Address>,
 	F: Fn(&Path) -> Result<S, S::Error>,
 {
 	let path = base.join("dictionary");
@@ -149,7 +139,7 @@ where
 	let mut stream = AddressStream::new(total, 2);
 	let mut seen_addr: Option<Address> = None;
 	let mut _inserted: u64 = 0;
-	let mut batch: Vec<(Key16, Address)> = Vec::with_capacity(BATCH);
+	let mut batch: Vec<(Key, Address)> = Vec::with_capacity(BATCH);
 	for i in 0..total {
 		if let Some(v) = stream.next() {
 			let k = make_key(i);
@@ -196,11 +186,8 @@ pub fn cleanup_dirs(base: &Path, dirs: &[&str]) {
 	}
 }
 
-pub fn make_key(i: u64) -> Key16 {
-	let a = i;
-	let b = (i as u32).wrapping_mul(17);
-	let c = (i as u32).wrapping_mul(31);
-	Key16::from_fields(a, b, c)
+pub fn make_key(i: u64) -> Key {
+	Key(i)
 }
 
 pub fn ops_per_sec(total: u64, elapsed: std::time::Duration) -> f64 {

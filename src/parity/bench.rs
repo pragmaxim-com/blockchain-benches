@@ -3,7 +3,7 @@ mod store;
 use std::path::{Path, PathBuf};
 
 use blockchain_benches::bench_common::{
-	run_all_parallel, run_dictionary, run_index, run_plain, run_range, Address, Amount, Key16, Timestamp, TxHash,
+	run_all_parallel, run_dictionary, run_index, run_plain, run_range, Address, Amount, Key, Timestamp, TxHash,
 };
 use blockchain_benches::bench_codecs::{AddressCodec, AmountCodec, InvalidInput, KeyCodec, TimestampCodec, TxCodec};
 use store::{Layout, Store, StoreResult};
@@ -71,18 +71,18 @@ fn main() -> StoreResult<()> {
 	Ok(())
 }
 
-fn parity_plain_factory(path: &Path) -> StoreResult<Store<Key16, Amount, PKeyCodec, PAmountCodec>> {
+fn parity_plain_factory(path: &Path) -> StoreResult<Store<Key, Amount, PKeyCodec, PAmountCodec>> {
 	Store::open_with_options(path, Layout::plain(0), ())
 }
 
-fn parity_index_factory(path: &Path) -> StoreResult<Store<Key16, TxHash, PKeyCodec, PTxCodec>> {
+fn parity_index_factory(path: &Path) -> StoreResult<Store<Key, TxHash, PKeyCodec, PTxCodec>> {
 	Store::open_with_options(path, Layout::unique_index(0), ())
 }
 
-fn parity_range_factory(path: &Path) -> StoreResult<Store<Key16, Timestamp, PKeyCodec, PTimestampCodec>> {
+fn parity_range_factory(path: &Path) -> StoreResult<Store<Key, Timestamp, PKeyCodec, PTimestampCodec>> {
 	Store::open_with_options(path, Layout::range(0), ())
 }
 
-fn parity_dictionary_factory(path: &Path) -> StoreResult<Store<Key16, Address, PKeyCodec, PAddressCodec>> {
+fn parity_dictionary_factory(path: &Path) -> StoreResult<Store<Key, Address, PKeyCodec, PAddressCodec>> {
 	Store::open_with_options(path, Layout::dictionary(0), ())
 }

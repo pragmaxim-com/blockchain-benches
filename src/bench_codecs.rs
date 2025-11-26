@@ -1,7 +1,7 @@
 use std::marker::PhantomData;
 
 use crate::{
-	bench_common::{Address, Amount, Key16, Timestamp, TxHash, KEY_LEN},
+	bench_common::{Address, Amount, Key, Timestamp, TxHash},
 	store_interface::StoreCodec,
 };
 
@@ -16,15 +16,15 @@ pub struct TxCodec<E, I>(PhantomData<(E, I)>);
 pub struct TimestampCodec<E, I>(PhantomData<(E, I)>);
 pub struct AddressCodec<E>(PhantomData<E>);
 
-impl<E: 'static, I: InvalidInput<E> + 'static> StoreCodec<Key16> for KeyCodec<E, I> {
+impl<E: 'static, I: InvalidInput<E> + 'static> StoreCodec<Key> for KeyCodec<E, I> {
 	type Error = E;
-	type Enc<'a> = &'a [u8] where E: 'a, I: 'a;
-	fn encode<'a>(value: &'a Key16) -> Self::Enc<'a> {
-		value.as_ref()
+	type Enc<'a> = [u8; 8] where E: 'a, I: 'a;
+	fn encode<'a>(value: &'a Key) -> Self::Enc<'a> {
+		value.0.to_be_bytes()
 	}
-	fn decode(bytes: &[u8]) -> Result<Key16, Self::Error> {
-		let arr: [u8; KEY_LEN] = bytes.try_into().map_err(|_| I::invalid_input("bad key length"))?;
-		Ok(Key16(arr))
+	fn decode(bytes: &[u8]) -> Result<Key, Self::Error> {
+		let arr: [u8; 8] = bytes.try_into().map_err(|_| I::invalid_input("bad key length"))?;
+		Ok(Key(u64::from_be_bytes(arr)))
 	}
 }
 

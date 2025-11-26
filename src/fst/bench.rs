@@ -2,7 +2,7 @@ use std::path::{Path, PathBuf};
 
 use blockchain_benches::bench_codecs::{AddressCodec, AmountCodec, InvalidInput, KeyCodec, TimestampCodec, TxCodec};
 use blockchain_benches::bench_common::{
-	run_all_parallel, run_dictionary, run_index, run_plain, run_range, Address, Amount, Key16, Timestamp, TxHash,
+	run_all_parallel, run_dictionary, run_index, run_plain, run_range, Address, Amount, Key, Timestamp, TxHash,
 };
 use blockchain_benches::fst::store::{Layout, Store, StoreOptions, StoreResult};
 use blockchain_benches::fst::store;
@@ -93,18 +93,18 @@ fn main() -> StoreResult<()> {
 	Ok(())
 }
 
-fn fst_plain_factory(path: &Path, options: StoreOptions) -> StoreResult<Store<Key16, Amount, FKeyCodec, FAmountCodec>> {
+fn fst_plain_factory(path: &Path, options: StoreOptions) -> StoreResult<Store<Key, Amount, FKeyCodec, FAmountCodec>> {
 	Store::open(path, Layout::plain(0), options)
 }
 
-fn fst_index_factory(path: &Path, options: StoreOptions) -> StoreResult<Store<Key16, TxHash, FKeyCodec, FTxCodec>> {
+fn fst_index_factory(path: &Path, options: StoreOptions) -> StoreResult<Store<Key, TxHash, FKeyCodec, FTxCodec>> {
 	Store::open(path, Layout::unique_index(0), options)
 }
 
-fn fst_range_factory(path: &Path, options: StoreOptions) -> StoreResult<Store<Key16, Timestamp, FKeyCodec, FTimestampCodec>> {
+fn fst_range_factory(path: &Path, options: StoreOptions) -> StoreResult<Store<Key, Timestamp, FKeyCodec, FTimestampCodec>> {
 	Store::open(path, Layout::range(0), options)
 }
 
-fn fst_dictionary_factory(path: &Path, options: StoreOptions) -> StoreResult<Store<Key16, Address, FKeyCodec, FAddressCodec>> {
+fn fst_dictionary_factory(path: &Path, options: StoreOptions) -> StoreResult<Store<Key, Address, FKeyCodec, FAddressCodec>> {
 	Store::open(path, Layout::dictionary(0), options)
 }
