@@ -29,6 +29,30 @@ impl From<fjall::Error> for StoreError {
 
 pub type StoreResult<T> = Result<T, StoreError>;
 
+#[derive(Clone, Copy)]
+pub struct FjallOptions {
+	pub max_journal_bytes: u64,
+	pub max_write_buffer_bytes: u64,
+	pub cache_bytes: u64,
+	pub flush_workers: usize,
+	pub compaction_workers: usize,
+	pub manual_journal_persist: bool,
+}
+
+impl Default for FjallOptions {
+	fn default() -> Self {
+		let cpus = std::thread::available_parallelism().map(|n| n.get()).unwrap_or(4);
+		Self {
+			max_journal_bytes: 1 * 1024 * 1024 * 1024,     // 4 GiB WAL budget
+			max_write_buffer_bytes: 128 * 1024 * 1024,     // 512 MiB memtables across partitions
+			cache_bytes: 512 * 1024 * 1024,                // 512 MiB cache
+			flush_workers: cpus.max(4),
+			compaction_workers: cpus.max(4),
+			manual_journal_persist: true,                  // favor write throughput over durability
+		}
+	}
+}
+
 /// Storage layouts supported by the generic store.
 #[derive(Clone, Copy)]
 pub enum Layout {
@@ -86,11 +110,18 @@ where
 	VC: StoreCodec<V, Error = StoreError>,
 {
 	pub fn open(path: &Path, layout: Layout) -> StoreResult<Self> {
-		Self::open_with_options(path, layout, ())
+		Self::open_with_options(path, layout, FjallOptions::default())
 	}
 
-	pub fn open_with_options(path: &Path, layout: Layout, _options: ()) -> StoreResult<Self> {
-		let keyspace = Config::new(path).open()?;
+	pub fn open_with_options(path: &Path, layout: Layout, options: FjallOptions) -> StoreResult<Self> {
+		let keyspace = Config::new(path)
+			.manual_journal_persist(options.manual_journal_persist)
+			.max_journaling_size(options.max_journal_bytes)
+			.max_write_buffer_size(options.max_write_buffer_bytes)
+			.cache_size(options.cache_bytes)
+			.flush_workers(options.flush_workers)
+			.compaction_workers(options.compaction_workers)
+			.open()?;
 		let count = layout.column_count();
 		let mut partitions = Vec::with_capacity(count);
 		for idx in 0..count {
@@ -291,7 +322,12 @@ mod tests {
 			let dir = tempdir().unwrap();
 			let path = dir.path().to_path_buf();
 			std::mem::forget(dir);
-			Store::<Vec<u8>, Vec<u8>, BytesCodec, BytesCodec>::open_with_options(&path, Layout::plain(0), ()).unwrap()
+			Store::<Vec<u8>, Vec<u8>, BytesCodec, BytesCodec>::open_with_options(
+				&path,
+				Layout::plain(0),
+				FjallOptions::default(),
+			)
+			.unwrap()
 		});
 	}
 
@@ -301,7 +337,12 @@ mod tests {
 			let dir = tempdir().unwrap();
 			let path = dir.path().to_path_buf();
 			std::mem::forget(dir);
-			Store::<Vec<u8>, Vec<u8>, BytesCodec, BytesCodec>::open_with_options(&path, Layout::unique_index(0), ()).unwrap()
+			Store::<Vec<u8>, Vec<u8>, BytesCodec, BytesCodec>::open_with_options(
+				&path,
+				Layout::unique_index(0),
+				FjallOptions::default(),
+			)
+			.unwrap()
 		});
 	}
 
@@ -311,7 +352,12 @@ mod tests {
 			let dir = tempdir().unwrap();
 			let path = dir.path().to_path_buf();
 			std::mem::forget(dir);
-			Store::<Vec<u8>, Vec<u8>, BytesCodec, BytesCodec>::open_with_options(&path, Layout::range(0), ()).unwrap()
+			Store::<Vec<u8>, Vec<u8>, BytesCodec, BytesCodec>::open_with_options(
+				&path,
+				Layout::range(0),
+				FjallOptions::default(),
+			)
+			.unwrap()
 		});
 	}
 }
@@ -341,7 +387,7 @@ where
 	KC: StoreCodec<K, Error = StoreError>,
 	VC: StoreCodec<V, Error = StoreError>,
 {
-	type Options = ();
+	type Options = FjallOptions;
 	type Layout = Layout;
 
 	fn open_with_options(path: &Path, layout: Self::Layout, options: Self::Options) -> StoreResult<Self> {

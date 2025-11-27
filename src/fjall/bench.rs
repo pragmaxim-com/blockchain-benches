@@ -19,6 +19,7 @@ type FAmountCodec = AmountCodec<StoreError, FjallInvalid>;
 type FTimestampCodec = TimestampCodec<StoreError, FjallInvalid>;
 type FTxCodec = TxCodec<StoreError, FjallInvalid>;
 type FAddressCodec = AddressCodec<StoreError>;
+use blockchain_benches::fjall::store::FjallOptions;
 
 fn main() -> StoreResult<()> {
 	let mut args = std::env::args().skip(1);
@@ -70,17 +71,17 @@ fn main() -> StoreResult<()> {
 }
 
 fn fjall_plain_factory(path: &Path) -> StoreResult<Store<Key, Amount, FKeyCodec, FAmountCodec>> {
-	Store::open_with_options(path, Layout::plain(0), ())
+	Store::open_with_options(path, Layout::plain(0), FjallOptions::default())
 }
 
 fn fjall_index_factory(path: &Path) -> StoreResult<Store<Key, TxHash, FKeyCodec, FTxCodec>> {
-	Store::open_with_options(path, Layout::unique_index(0), ())
+	Store::open_with_options(path, Layout::unique_index(0), FjallOptions::default())
 }
 
 fn fjall_range_factory(path: &Path) -> StoreResult<Store<Key, Timestamp, FKeyCodec, FTimestampCodec>> {
-	Store::open_with_options(path, Layout::range(0), ())
+	Store::open_with_options(path, Layout::range(0), FjallOptions::default())
 }
 
 fn fjall_dictionary_factory(path: &Path) -> StoreResult<Store<Key, Address, FKeyCodec, FAddressCodec>> {
-	Store::open_with_options(path, Layout::dictionary(0), ())
+	Store::open_with_options(path, Layout::dictionary(0), FjallOptions::default())
 }
