@@ -1,6 +1,6 @@
 [package]
 edition = "2024"
-name = "mdbx"
+name = "mdbx-bench"
 version.workspace = true
 
 [[bin]]

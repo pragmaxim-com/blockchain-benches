@@ -4,7 +4,7 @@ name = "rocksdb-bench"
 version.workspace = true
 
 [[bin]]
-name = "rocksdb-bench"
+name = "rocksdb"
 path = "src/bench.rs"
 
 [dependencies]

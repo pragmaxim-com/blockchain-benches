@@ -25,12 +25,12 @@ so I compare these storages with basic abstraction like index, range and diction
 
 Bench CLI helpers (each accepts `--benches <comma list>` with `plain,index,range,dictionary,all`):
 - From the workspace root, target the specific package/bin (workspace split avoids compiling all backends):
-  - `cargo run -p parity --release --bin parity -- [--total <rows>] [--dir <path>] [--benches <list>]`
-  - `cargo run -p fjall --release --bin fjall -- [--total <rows>] [--dir <path>] [--benches <list>]`
-  - `cargo run -p fst --release --bin fst -- [--total <rows>] [--mem-mb <megabytes>] [--dir <path>] [--benches <list>]`
-  - `cargo run -p redb --release --bin redb -- [--total <rows>] [--dir <path>] [--benches <list>]`
-  - `cargo run -p rocksdb --release --bin rocksdb -- [--total <rows>] [--dir <path>] [--benches <list>]`
-  - `cargo run -p mdbx --release --bin mdbx -- [--total <rows>] [--dir <path>] [--benches <list>]`
+  - `cargo run -p parity-bench --release --bin parity -- [--total <rows>] [--dir <path>] [--benches <list>]`
+  - `cargo run -p fjall-bench --release --bin fjall -- [--total <rows>] [--dir <path>] [--benches <list>]`
+  - `cargo run -p fst-bench --release --bin fst -- [--total <rows>] [--mem-mb <megabytes>] [--dir <path>] [--benches <list>]`
+  - `cargo run -p redb-bench --release --bin redb -- [--total <rows>] [--dir <path>] [--benches <list>]`
+  - `cargo run -p rocksdb-bench --release --bin rocksdb -- [--total <rows>] [--dir <path>] [--benches <list>]`
+  - `cargo run -p mdbx-bench --release --bin mdbx -- [--total <rows>] [--dir <path>] [--benches <list>]`
   - FST txhash-only build from an existing Fjall index: `cargo run -p fst --release --bin fst-txhash-bench -- [--source <fjall_dir>] [--dir <path>]`
 
 Defaults: 10_000_000 rows, temp dir; fst uses a 2 GB memtable; `--benches` empty or `all_in_par` runs all in parallel.

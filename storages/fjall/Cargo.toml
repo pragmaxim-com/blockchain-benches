@@ -4,7 +4,7 @@ name = "fjall-bench"
 version.workspace = true
 
 [[bin]]
-name = "fjall-bench"
+name = "fjall"
 path = "src/bench.rs"
 
 [dependencies]
