@@ -1,0 +1,15 @@
+[package]
+edition = "2024"
+name = "fjall-bench"
+version.workspace = true
+
+[[bin]]
+name = "fjall-bench"
+path = "src/bench.rs"
+
+[dependencies]
+core = { path = "../../core" }
+fjall = "2.11.2"
+
+[dev-dependencies]
+tempfile = "3.23.0"

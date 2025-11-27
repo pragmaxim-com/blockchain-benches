@@ -1,0 +1,15 @@
+[package]
+edition = "2024"
+name = "redb-bench"
+version.workspace = true
+
+[[bin]]
+name = "redb-bench"
+path = "src/bench.rs"
+
+[dependencies]
+redb = "3.1.0"
+core = { path = "../../core" }
+
+[dev-dependencies]
+tempfile = "3.23.0"

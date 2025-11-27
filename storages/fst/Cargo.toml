@@ -1,0 +1,22 @@
+[package]
+edition = "2024"
+name = "fst-bench"
+version.workspace = true
+
+[[bin]]
+name = "fst"
+path = "src/bench.rs"
+
+[[bin]]
+name = "fst-txhash-bench"
+path = "src/bench_txhash.rs"
+
+[dependencies]
+fst = "0.4.7"
+fjall = "2.11.2"
+memmap2 = "0.9"
+hex = "0.4"
+core = { path = "../../core" }
+
+[dev-dependencies]
+tempfile = "3.23.0"

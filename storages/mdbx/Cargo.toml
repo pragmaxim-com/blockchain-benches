@@ -1,0 +1,15 @@
+[package]
+edition = "2024"
+name = "mdbx"
+version.workspace = true
+
+[[bin]]
+name = "mdbx"
+path = "src/bench.rs"
+
+[dependencies]
+libmdbx = "0.6.4"
+core = { path = "../../core" }
+
+[dev-dependencies]
+tempfile = "3.23.0"

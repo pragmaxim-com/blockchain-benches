@@ -9,10 +9,6 @@ In the context of persisting :
 We suffer from **Dual Ordering Problem** : 
  - supporting queries efficiently on both Key and Value requires two different index orders, and maintaining them consistently creates problems of duplication.
 
-I already know that parity-db or fjall-rs can beat well known storages for blockchain data persistence :
- - copy-on-write (COW) B+Tree family (sled, libmdbx)
- - LSM Tree with WAL family (leveldb, rocksdb)
-
 so I compare these storages with basic abstraction like index, range and dictionary of many columns because that reveals real write amplification :
 - [fjall](https://github.com/fjall-rs/fjall) store
   - LSM-tree-based storage (tuned here for higher write throughput; weaker reads)
@@ -28,21 +24,17 @@ so I compare these storages with basic abstraction like index, range and diction
   - append-friendly B+Tree (LMDB successor) with configurable sync levels
 
 Bench CLI helpers (each accepts `--benches <comma list>` with `plain,index,range,dictionary,all`):
-- `cargo run --release --bin parity-bench -- [--total <rows>] [--dir <path>] [--benches <list>]`
-- `cargo run --release --bin fjall-bench -- [--total <rows>] [--dir <path>] [--benches <list>]`
-- `cargo run --release --bin fst-bench -- [--total <rows>] [--mem-mb <megabytes>] [--dir <path>] [--benches <list>]`
-- `cargo run --release --bin redb-bench -- [--total <rows>] [--dir <path>] [--benches <list>]`
-- `cargo run --release --bin rocksdb-bench -- [--total <rows>] [--dir <path>] [--benches <list>]`
-- `cargo run --release --bin libmdbx-bench -- [--total <rows>] [--dir <path>] [--benches <list>]`
-- FST txhash-only build from an existing Fjall index: `cargo run --release --bin fst-txhash-bench -- [--source <fjall_dir>] [--dir <path>]`
+- From the workspace root, target the specific package/bin (workspace split avoids compiling all backends):
+  - `cargo run -p parity --release --bin parity -- [--total <rows>] [--dir <path>] [--benches <list>]`
+  - `cargo run -p fjall --release --bin fjall -- [--total <rows>] [--dir <path>] [--benches <list>]`
+  - `cargo run -p fst --release --bin fst -- [--total <rows>] [--mem-mb <megabytes>] [--dir <path>] [--benches <list>]`
+  - `cargo run -p redb --release --bin redb -- [--total <rows>] [--dir <path>] [--benches <list>]`
+  - `cargo run -p rocksdb --release --bin rocksdb -- [--total <rows>] [--dir <path>] [--benches <list>]`
+  - `cargo run -p mdbx --release --bin mdbx -- [--total <rows>] [--dir <path>] [--benches <list>]`
+  - FST txhash-only build from an existing Fjall index: `cargo run -p fst --release --bin fst-txhash-bench -- [--source <fjall_dir>] [--dir <path>]`
 
 Defaults: 10_000_000 rows, temp dir; fst uses a 2 GB memtable; `--benches` empty or `all_in_par` runs all in parallel.
 
-### Goal
+### Results
 
-The goal is to make a hybrid storage engine that combines fjall-rs with fst-lsm such that :
- - fjall is used for key-value pairs
- - fst-lsm is used for value-key pairs (index) 
-
-The reason is that LSM Tree performance degrades for hashes as keys basically linearly and we will try to prove
-that fst-lsm performance degrades sub-linearly. 
+RocksDB is unbeatable since release `10.7.3` as it improved performance ~ 50% due to various optimizations parallel compression, etc.

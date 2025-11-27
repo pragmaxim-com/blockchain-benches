@@ -1,0 +1,15 @@
+[package]
+edition = "2024"
+name = "parity"
+version.workspace = true
+
+[[bin]]
+name = "parity"
+path = "src/bench.rs"
+
+[dependencies]
+parity-db = "0.5.4"
+core = { path = "../../core" }
+
+[dev-dependencies]
+tempfile = "3.23.0"
