@@ -148,15 +148,11 @@ where
 	let mut store = factory(&path)?;
 	store.set_progress("dictionary", total);
 	let mut stream = AddressStream::new(total, 2);
-	let mut seen_addr: Option<Address> = None;
 	let mut _inserted: u64 = 0;
 	let mut batch: Vec<(Key, Address)> = Vec::with_capacity(BATCH);
 	for i in 0..total {
 		if let Some(v) = stream.next() {
 			let k = make_key(i);
-			if i % 5 == 0 {
-				seen_addr = Some(v.clone());
-			}
 			batch.push((k, v));
 		}
 		if batch.len() >= BATCH {
