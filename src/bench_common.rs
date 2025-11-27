@@ -15,6 +15,17 @@ use std::{
 
 pub const BATCH: usize = 20_000;
 
+pub struct NamedJob<E> {
+	pub name: &'static str,
+	pub job: Box<dyn FnOnce() -> Result<(), E> + Send>,
+}
+
+impl<E> NamedJob<E> {
+	pub fn new(name: &'static str, job: Box<dyn FnOnce() -> Result<(), E> + Send>) -> Self {
+		Self { name, job }
+	}
+}
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
 pub struct Key(pub u64);
 
@@ -166,11 +177,24 @@ where
 	Ok(())
 }
 
-pub fn run_all_parallel<E>(jobs: Vec<Box<dyn FnOnce() -> Result<(), E> + Send>>) -> Result<(), E>
+pub fn run_all_parallel<E>(jobs: Vec<NamedJob<E>>, selected: &[String]) -> Result<(), E>
 where
 	E: Send + 'static,
 {
-	let handles = jobs.into_iter().map(|job| thread::spawn(job)).collect::<Vec<_>>();
+	let selected: Vec<String> = selected.iter().map(|s| s.to_ascii_lowercase()).collect();
+	let run_all = selected.is_empty()
+		|| selected.iter().any(|s| s == "all" || s == "all_in_par");
+
+	let filtered = if run_all {
+		jobs
+	} else {
+		jobs
+			.into_iter()
+			.filter(|j| selected.iter().any(|s| s == j.name))
+			.collect()
+	};
+
+	let handles = filtered.into_iter().map(|j| thread::spawn(j.job)).collect::<Vec<_>>();
 	for h in handles {
 		h.join().unwrap()?;
 	}

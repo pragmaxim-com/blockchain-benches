@@ -3,10 +3,11 @@ mod store;
 use std::path::{Path, PathBuf};
 
 use blockchain_benches::bench_common::{
-	run_all_parallel, run_dictionary, run_index, run_plain, run_range, Address, Amount, Key, Timestamp, TxHash,
+	run_all_parallel, run_dictionary, run_index, run_plain, run_range, Address, Amount, Key, NamedJob, Timestamp, TxHash,
 };
 use blockchain_benches::bench_codecs::{AddressCodec, AmountCodec, InvalidInput, KeyCodec, TimestampCodec, TxCodec};
 use store::{Layout, Store, StoreResult};
+use parity_db::Error as PError;
 
 struct ParityInvalid;
 
@@ -26,6 +27,7 @@ fn main() -> StoreResult<()> {
 	let mut args = std::env::args().skip(1);
 	let mut total = 10_000_000u64;
 	let mut base: Option<PathBuf> = None;
+	let mut benches: Option<Vec<String>> = None;
 
 	while let Some(arg) = args.next() {
 		match arg.as_str() {
@@ -39,6 +41,11 @@ fn main() -> StoreResult<()> {
 					base = Some(PathBuf::from(p));
 				}
 			},
+			"--benches" => {
+				if let Some(list) = args.next() {
+					benches = Some(list.split(',').map(|s| s.to_string()).collect());
+				}
+			},
 			_ => {},
 		}
 	}
@@ -47,26 +54,26 @@ fn main() -> StoreResult<()> {
 
 	blockchain_benches::bench_common::cleanup_dirs(&base, &["plain", "index", "range", "dictionary"]);
 
-	let jobs: Vec<Box<dyn FnOnce() -> StoreResult<()> + Send>> = vec![
+	let jobs: Vec<NamedJob<PError>> = vec![
 		{
 			let base = base.clone();
-			Box::new(move || run_plain(&base, total, parity_plain_factory))
+			NamedJob::new("plain", Box::new(move || run_plain(&base, total, parity_plain_factory)))
 		},
 		{
 			let base = base.clone();
-			Box::new(move || run_index(&base, total, parity_index_factory))
+			NamedJob::new("index", Box::new(move || run_index(&base, total, parity_index_factory)))
 		},
 		{
 			let base = base.clone();
-			Box::new(move || run_range(&base, total, parity_range_factory))
+			NamedJob::new("range", Box::new(move || run_range(&base, total, parity_range_factory)))
 		},
 		{
 			let base = base.clone();
-			Box::new(move || run_dictionary(&base, total, parity_dictionary_factory))
+			NamedJob::new("dictionary", Box::new(move || run_dictionary(&base, total, parity_dictionary_factory)))
 		},
 	];
 
-	run_all_parallel(jobs)?;
+	run_all_parallel(jobs, benches.as_deref().unwrap_or(&[]))?;
 
 	Ok(())
 }
