@@ -5,3 +5,4 @@ pub mod bench_codecs;
 pub mod fst;
 pub mod fjall;
 pub mod redb;
+pub mod rocksdb;

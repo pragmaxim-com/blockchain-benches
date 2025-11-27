@@ -22,12 +22,15 @@ so I compare these storages with basic abstraction like index, range and diction
   - similar to LSM Tree with mempool and no WAL but with fst instead of sstables
 - [redb](https://github.com/cberner/redb) store
   - copy-on-write B+Tree style embedded database
+- rocksdb store
+  - classic LSM with WAL and column families
 
 Bench CLI helpers (each accepts `--benches <comma list>` with `plain,index,range,dictionary,all`):
 - `cargo run --release --bin parity-bench -- [--total <rows>] [--dir <path>] [--benches <list>]`
 - `cargo run --release --bin fjall-bench -- [--total <rows>] [--dir <path>] [--benches <list>]`
 - `cargo run --release --bin fst-bench -- [--total <rows>] [--mem-mb <megabytes>] [--dir <path>] [--benches <list>]`
 - `cargo run --release --bin redb-bench -- [--total <rows>] [--dir <path>] [--benches <list>]`
+- `cargo run --release --bin rocksdb-bench -- [--total <rows>] [--dir <path>] [--benches <list>]`
 - FST txhash-only build from an existing Fjall index: `cargo run --release --bin fst-txhash-bench -- [--source <fjall_dir>] [--dir <path>]`
 
 Defaults: 10_000_000 rows, temp dir; fst uses a 2 GB memtable; `--benches` empty or `all_in_par` runs all in parallel.

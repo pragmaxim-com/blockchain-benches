@@ -20,6 +20,10 @@ name = "redb-bench"
 path = "src/redb/bench.rs"
 
 [[bin]]
+name = "rocksdb-bench"
+path = "src/rocksdb/bench.rs"
+
+[[bin]]
 name = "fst-txhash-bench"
 path = "src/fst/bench_txhash.rs"
 
@@ -35,6 +39,7 @@ memmap2 = "0.9"
 fjall = "2.11.2"
 hex = "0.4"
 redb = "3.1.0"
+rocksdb = { version = "0.24", default-features = false, features = ["multi-threaded-cf", "zstd"] }
 
 [dev-dependencies]
 tempfile = "3"
