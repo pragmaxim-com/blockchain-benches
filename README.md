@@ -44,9 +44,20 @@ Defaults: 10_000_000 rows, temp dir; all benches in parallel
 
 ### Results
 
+**LSM Trees**
 RocksDB is unbeatable since release `10.7.3` as it improved performance for my use case ~ 50%
 due to various optimizations like parallel compression.
 
-RocksDB keeps indexing throughput ~640K rows/sec (on common hardware) into 2 columns KV/VK (32bytes hash and u32) at 2B rows at each with 175GB.
+RocksDB keeps indexing throughput ~640K rows/sec (on common hardware) into 2 columns KV/VK (32bytes hash and u32) at 2B rows at each, occupying 175GB.
 And beats all others in speed, space or write amplification, it just consumes much more CPU than BTrees and has worse query performance.
 BTrees are simply IO bound by too much random access.
+
+**BTrees**
+`redb` wins over `libmdbx`, I could not finish the bench with `libmdbx` due to `Error: Mdbx(MapFull)` at :
+```
+progress 1640660000 (~193753.4 rows/s)
+```
+
+With 193GB used, Btrees need more disk space.
+
+Otherwise, both have similar characteristics.
