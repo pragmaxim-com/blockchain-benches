@@ -54,3 +54,11 @@ BTrees are simply IO bound by too much random access.
 
 **BTrees**
 `libmdbx` wins however it is at 40% of RocksDB `10.7.3` indexing throughput, with 250GB used, Btrees need more disk space and less CPU.
+
+### Conclusion
+
+`RocksDB` wins in write-only workload.
+`libmdbx` wins in combined workload because BTrees shine in there.
+
+For blockchains, if you resolve prev-outs during indexing, `libmdbx` might outperform RocksDB.
+The bench should be actually performed on real BTC data because BTree and LSMTree perform differently on uniform vs Zipfian distributions.
